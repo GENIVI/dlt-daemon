@@ -128,7 +128,6 @@ int dlt_gateway_process_passive_node_messages(DltDaemon *daemon,
  */
 int dlt_gateway_process_gateway_timer(DltDaemon *daemon,
                                       DltDaemonLocal *daemon_local,
-                                      DltReceiver *rec,
                                       int verbose);
 
 /**

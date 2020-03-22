@@ -563,13 +563,12 @@ TEST(t_dlt_gateway_process_gateway_timer, normal)
     daemon.storage_handle = &storage_handle;
     daemon_local.pEvent.connections->receiver->fd = -1;
 
-    EXPECT_EQ(DLT_RETURN_OK,
-              dlt_gateway_process_gateway_timer(&daemon, &daemon_local, daemon_local.pEvent.connections->receiver, 1));
+    EXPECT_EQ(DLT_RETURN_OK, dlt_gateway_process_gateway_timer(&daemon, &daemon_local, 1));
 }
 
 TEST(t_dlt_gateway_process_gateway_timer, nullpointer)
 {
-    EXPECT_EQ(DLT_RETURN_WRONG_PARAMETER, dlt_gateway_process_gateway_timer(NULL, NULL, NULL, 0));
+    EXPECT_EQ(DLT_RETURN_WRONG_PARAMETER, dlt_gateway_process_gateway_timer(NULL, NULL, 0));
 }
 
 /* Begin Method: dlt_gateway::t_dlt_gateway_process_on_demand_request*/

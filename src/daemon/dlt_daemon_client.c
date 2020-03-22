@@ -2252,26 +2252,13 @@ void dlt_daemon_control_message_time(int sock, DltDaemon *daemon, DltDaemonLocal
 
 int dlt_daemon_process_one_s_timer(DltDaemon *daemon,
                                    DltDaemonLocal *daemon_local,
-                                   DltReceiver *receiver,
                                    int verbose)
 {
-    uint64_t expir = 0;
-    ssize_t res = 0;
-
     PRINT_FUNCTION_VERBOSE(verbose);
 
-    if ((daemon_local == NULL) || (daemon == NULL) || (receiver == NULL)) {
+    if ((daemon_local == NULL) || (daemon == NULL)) {
         dlt_vlog(LOG_ERR, "%s: invalid parameters", __func__);
         return -1;
-    }
-
-    res = read(receiver->fd, &expir, sizeof(expir));
-
-    if (res < 0) {
-        dlt_vlog(LOG_WARNING, "%s: Fail to read timer (%s)\n", __func__,
-                 strerror(errno));
-        /* Activity received on timer_wd, but unable to read the fd:
-         * let's go on sending notification */
     }
 
     if ((daemon->state == DLT_DAEMON_STATE_SEND_BUFFER) ||
@@ -2297,26 +2284,13 @@ int dlt_daemon_process_one_s_timer(DltDaemon *daemon,
 
 int dlt_daemon_process_sixty_s_timer(DltDaemon *daemon,
                                      DltDaemonLocal *daemon_local,
-                                     DltReceiver *receiver,
                                      int verbose)
 {
-    uint64_t expir = 0;
-    ssize_t res = 0;
-
     PRINT_FUNCTION_VERBOSE(verbose);
 
-    if ((daemon_local == NULL) || (daemon == NULL) || (receiver == NULL)) {
+    if ((daemon_local == NULL) || (daemon == NULL)) {
         dlt_vlog(LOG_ERR, "%s: invalid parameters", __func__);
         return -1;
-    }
-
-    res = read(receiver->fd, &expir, sizeof(expir));
-
-    if (res < 0) {
-        dlt_vlog(LOG_WARNING, "%s: Fail to read timer (%s)\n", __func__,
-                 strerror(errno));
-        /* Activity received on timer_wd, but unable to read the fd:
-         * let's go on sending notification */
     }
 
     if (daemon_local->flags.sendECUSoftwareVersion > 0)
@@ -2349,25 +2323,13 @@ int dlt_daemon_process_sixty_s_timer(DltDaemon *daemon,
 #ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
 int dlt_daemon_process_systemd_timer(DltDaemon *daemon,
                                      DltDaemonLocal *daemon_local,
-                                     DltReceiver *receiver,
                                      int verbose)
 {
-    uint64_t expir = 0;
-    ssize_t res = -1;
-
     PRINT_FUNCTION_VERBOSE(verbose);
 
-    if ((daemon_local == NULL) || (daemon == NULL) || (receiver == NULL)) {
+    if ((daemon_local == NULL) || (daemon == NULL)) {
         dlt_vlog(LOG_ERR, "%s: invalid parameters", __func__);
         return res;
-    }
-
-    res = read(receiver->fd, &expir, sizeof(expir));
-
-    if (res < 0) {
-        dlt_vlog(LOG_WARNING, "Failed to read timer_wd; %s\n", strerror(errno));
-        /* Activity received on timer_wd, but unable to read the fd:
-         * let's go on sending notification */
     }
 
     if (sd_notify(0, "WATCHDOG=1") < 0)
@@ -2380,12 +2342,10 @@ int dlt_daemon_process_systemd_timer(DltDaemon *daemon,
 #else
 int dlt_daemon_process_systemd_timer(DltDaemon *daemon,
                                      DltDaemonLocal *daemon_local,
-                                     DltReceiver *receiver,
                                      int verbose)
 {
     (void)daemon;
     (void)daemon_local;
-    (void)receiver;
     (void)verbose;
 
     dlt_log(LOG_DEBUG, "Timer watchdog not enabled\n");
