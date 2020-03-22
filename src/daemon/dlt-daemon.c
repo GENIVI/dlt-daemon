@@ -899,7 +899,7 @@ int main(int argc, char *argv[])
                             "Daemon launched. Starting to output traces...",
                             daemon_local.flags.vflag);
 
-    /* Even handling loop. */
+    /* Event handling loop. */
     while ((back >= 0) && (g_exit >= 0))
         back = dlt_daemon_handle_event(&daemon_local.pEvent,
                                        &daemon,
