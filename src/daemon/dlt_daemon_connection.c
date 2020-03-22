@@ -231,15 +231,6 @@ DLT_STATIC DltReceiver *dlt_connection_get_receiver(DltDaemonLocal *daemon_local
     case DLT_CONNECTION_APP_CONNECT:
     /* FALL THROUGH */
 #endif
-    case DLT_CONNECTION_ONE_S_TIMER:
-    /* FALL THROUGH */
-    case DLT_CONNECTION_SIXTY_S_TIMER:
-#ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
-    /* FALL THROUGH */
-    case DLT_CONNECTION_SYSTEMD_TIMER:
-#endif
-    /* FALL THROUGH */
-    case DLT_CONNECTION_GATEWAY_TIMER:
         ret = calloc(1, sizeof(DltReceiver));
 
         if (ret)
@@ -294,17 +285,6 @@ void *dlt_connection_get_callback(DltConnection *con)
     case DLT_CONNECTION_APP_MSG:
         ret = dlt_daemon_process_user_messages;
         break;
-    case DLT_CONNECTION_ONE_S_TIMER:
-        ret = dlt_daemon_process_one_s_timer;
-        break;
-    case DLT_CONNECTION_SIXTY_S_TIMER:
-        ret = dlt_daemon_process_sixty_s_timer;
-        break;
-#ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
-    case DLT_CONNECTION_SYSTEMD_TIMER:
-        ret = dlt_daemon_process_systemd_timer;
-        break;
-#endif
     case DLT_CONNECTION_CONTROL_CONNECT:
         ret = dlt_daemon_process_control_connect;
         break;
@@ -313,9 +293,6 @@ void *dlt_connection_get_callback(DltConnection *con)
         break;
     case DLT_CONNECTION_GATEWAY:
         ret = dlt_gateway_process_passive_node_messages;
-        break;
-    case DLT_CONNECTION_GATEWAY_TIMER:
-        ret = dlt_gateway_process_gateway_timer;
         break;
     default:
         ret = NULL;

@@ -3068,16 +3068,6 @@ int dlt_daemon_send_ringbuffer_to_client(DltDaemon *daemon, DltDaemonLocal *daem
     return DLT_DAEMON_ERROR_OK;
 }
 
-static char dlt_timer_conn_types[DLT_TIMER_UNKNOWN + 1] = {
-    [DLT_TIMER_PACKET] = DLT_CONNECTION_ONE_S_TIMER,
-    [DLT_TIMER_ECU] = DLT_CONNECTION_SIXTY_S_TIMER,
-#ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
-    [DLT_TIMER_SYSTEMD] = DLT_CONNECTION_SYSTEMD_TIMER,
-#endif
-    [DLT_TIMER_GATEWAY] = DLT_CONNECTION_GATEWAY_TIMER,
-    [DLT_TIMER_UNKNOWN] = DLT_CONNECTION_TYPE_MAX
-};
-
 static char dlt_timer_names[DLT_TIMER_UNKNOWN + 1][32] = {
     [DLT_TIMER_PACKET] = "Timing packet",
     [DLT_TIMER_ECU] = "ECU version",
@@ -3143,11 +3133,7 @@ int create_timer_fd(DltDaemonLocal *daemon_local,
         dlt_vlog(LOG_INFO, "<%s> initialized with %d timer\n", timer_name,
                  period_sec);
 
-    return dlt_connection_create(daemon_local,
-                                 &daemon_local->pEvent,
-                                 local_fd,
-                                 POLLIN,
-                                 dlt_timer_conn_types[timer_id]);
+    return -1;
 }
 
 /* Close connection function */
