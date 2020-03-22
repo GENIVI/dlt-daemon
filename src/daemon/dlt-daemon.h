@@ -168,12 +168,6 @@ typedef struct
 
 typedef struct
 {
-    int timer_fd;
-    unsigned long long wakeups_missed;
-} DltDaemonPeriodicData;
-
-typedef struct
-{
     DltDaemon *daemon;
     DltDaemonLocal *daemon_local;
 } DltDaemonTimingPacketThreadData;
