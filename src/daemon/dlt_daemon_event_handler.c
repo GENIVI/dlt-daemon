@@ -42,6 +42,7 @@
 #include "dlt_daemon_connection_types.h"
 #include "dlt_daemon_event_handler.h"
 #include "dlt_daemon_event_handler_types.h"
+#include "dlt_gateway.h"
 
 /**
  * \def DLT_EV_TIMEOUT_MSEC
@@ -185,12 +186,17 @@ int dlt_daemon_handle_event(DltEventHandler *pEvent,
 {
     int ret = 0;
     unsigned int i = 0;
+    int timeout;
     int (*callback)(DltDaemon *, DltDaemonLocal *, DltReceiver *, int) = NULL;
 
     if ((pEvent == NULL) || (daemon == NULL) || (daemon_local == NULL))
         return DLT_RETURN_ERROR;
 
-    ret = poll(pEvent->pfd, pEvent->nfds, DLT_EV_TIMEOUT_MSEC);
+    timeout = dlt_daemon_handle_timer(daemon, daemon_local);
+    if (timeout < 0 || timeout > DLT_EV_TIMEOUT_MSEC)
+        timeout = DLT_EV_TIMEOUT_MSEC;
+
+    ret = poll(pEvent->pfd, pEvent->nfds, timeout);
 
     if (ret <= 0) {
         /* We are not interested in EINTR has it comes
@@ -263,6 +269,69 @@ int dlt_daemon_handle_event(DltEventHandler *pEvent,
     }
 
     return 0;
+}
+
+/** @brief Catch and process timer events.
+ *
+ * Check all active timers and handle any elapse event.
+ *
+ * @param daemon Structure to be passed to the callback.
+ * @param daemon_local Structure containing needed information.
+ *
+ * @return remaining msec until next elapse event, -1 otherwise.
+ */
+int dlt_daemon_handle_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local)
+{
+    struct timespec tp;
+    uint64_t tp_msec;
+    int i, td_msec;
+    DltTimerSpec *timer = NULL;
+    int next_elapse = -1;
+
+    clock_gettime(CLOCK_MONOTONIC, &tp);
+    tp_msec = tp.tv_sec * 1000 + tp.tv_nsec / 1000000;
+
+    for (i = 0; i < DLT_TIMER_UNKNOWN; i++) {
+        timer = &daemon_local->timer[i];
+
+        /* Skip an inactive timer */
+        if (timer->elapses_at_msec == 0)
+            continue;
+
+        td_msec = timer->elapses_at_msec - tp_msec;
+
+        if (td_msec <= 0) {
+            switch (i) {
+                case DLT_TIMER_PACKET:
+                    dlt_daemon_process_one_s_timer(daemon, daemon_local,
+                        daemon_local->flags.vflag);
+                    break;
+                case DLT_TIMER_ECU:
+                    dlt_daemon_process_sixty_s_timer(daemon, daemon_local,
+                        daemon_local->flags.vflag);
+                    break;
+                #ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
+                case DLT_TIMER_SYSTEMD:
+                    dlt_daemon_process_systemd_timer(daemon, daemon_local,
+                        daemon_local->flags.vflag);
+                    break;
+                #endif
+                case DLT_TIMER_GATEWAY:
+                    dlt_gateway_process_gateway_timer(daemon, daemon_local,
+                        daemon_local->flags.vflag);
+                    break;
+            }
+
+            timer->elapses_at_msec = tp_msec + timer->period_msec;
+            td_msec = timer->period_msec;
+        }
+
+        /* Determine remaining msec until next timer elapse event */
+        if (next_elapse < 0 || next_elapse > td_msec)
+            next_elapse = td_msec;
+    }
+
+    return next_elapse;
 }
 
 /** @brief Find connection with a specific \a fd in the connection list.

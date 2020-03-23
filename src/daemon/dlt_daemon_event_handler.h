@@ -36,6 +36,7 @@
 
 int dlt_daemon_prepare_event_handling(DltEventHandler *);
 int dlt_daemon_handle_event(DltEventHandler *, DltDaemon *, DltDaemonLocal *);
+int dlt_daemon_handle_timer(DltDaemon *, DltDaemonLocal *);
 
 DltConnection *dlt_event_handler_find_connection_by_id(DltEventHandler *,
                                                        DltConnectionId);
