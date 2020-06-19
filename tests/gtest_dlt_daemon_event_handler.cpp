@@ -404,13 +404,13 @@ TEST(t_dlt_connection_get_next, normal)
     memset(&current, 0, sizeof(DltConnection));
 
     node.type = DLT_CONNECTION_CLIENT_MSG_TCP;
-    current.type = DLT_CONNECTION_ONE_S_TIMER;
+    current.type = DLT_CONNECTION_CLIENT_MSG_SERIAL;
     current.next = &node;
 
     ret = dlt_connection_get_next(&current, type_mask);
     ASSERT_NE(ret, nullptr);
     EXPECT_EQ(DLT_CONNECTION_CLIENT_MSG_TCP, ret->type);
-    EXPECT_NE(DLT_CONNECTION_ONE_S_TIMER, ret->type);
+    EXPECT_NE(DLT_CONNECTION_CLIENT_MSG_SERIAL, ret->type);
 }
 
 /* Begin Method: dlt_daemon_connections::(t_dlt_connection_get_next*/

@@ -137,6 +137,16 @@ typedef struct
     int enforceContextLLAndTS;  /**< (Boolean) Enforce log-level, trace-status not to exceed contextLogLevel, contextTraceStatus */
     DltBindAddress_t *ipNodes; /**< (String: BindAddress) The daemon accepts connections only on this list of IP addresses */
 } DltDaemonFlags;
+
+/**
+ * Timer
+ */
+typedef struct
+{
+    uint64_t elapses_at_msec;
+    int period_msec;
+} DltTimerSpec;
+
 /**
  * The global parameters of a dlt daemon.
  */
@@ -147,6 +157,7 @@ typedef struct
     DltEventHandler pEvent; /**< struct for message producer event handling */
     DltGateway pGateway; /**< struct for passive node connection handling */
     DltMessage msg;           /**< one dlt message */
+    DltTimerSpec timer[DLT_TIMER_UNKNOWN]; /**< timer handling */
     int client_connections;    /**< counter for nr. of client connections */
     size_t baudrate;          /**< Baudrate of serial connection */
 #ifdef DLT_SHM_ENABLE
@@ -165,12 +176,6 @@ typedef struct
     int UDPMulticastIPPort; /* multicast port */
 #endif
 } DltDaemonLocal;
-
-typedef struct
-{
-    int timer_fd;
-    unsigned long long wakeups_missed;
-} DltDaemonPeriodicData;
 
 typedef struct
 {
@@ -203,9 +208,9 @@ int dlt_daemon_process_client_messages_serial(DltDaemon *daemon,
                                               DltReceiver *recv,
                                               int verbose);
 int dlt_daemon_process_user_messages(DltDaemon *daemon, DltDaemonLocal *daemon_local, DltReceiver *recv, int verbose);
-int dlt_daemon_process_one_s_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, DltReceiver *recv, int verbose);
-int dlt_daemon_process_sixty_s_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, DltReceiver *recv, int verbose);
-int dlt_daemon_process_systemd_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, DltReceiver *recv, int verbose);
+int dlt_daemon_process_one_s_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, int verbose);
+int dlt_daemon_process_sixty_s_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, int verbose);
+int dlt_daemon_process_systemd_timer(DltDaemon *daemon, DltDaemonLocal *daemon_local, int verbose);
 
 int dlt_daemon_process_control_connect(DltDaemon *daemon, DltDaemonLocal *daemon_local, DltReceiver *recv, int verbose);
 #ifdef DLT_USE_UNIX_SOCKET_IPC
@@ -258,7 +263,7 @@ void dlt_daemon_ecu_version_thread(void *ptr);
 void dlt_daemon_systemd_watchdog_thread(void *ptr);
 #endif
 
-int create_timer_fd(DltDaemonLocal *daemon_local, int period_sec, int starts_in, DltTimers timer);
+int create_timer(DltDaemonLocal *daemon_local, int period_sec, int starts_in, DltTimers timer);
 
 int dlt_daemon_close_socket(int sock, DltDaemon *daemon, DltDaemonLocal *daemon_local, int verbose);
 

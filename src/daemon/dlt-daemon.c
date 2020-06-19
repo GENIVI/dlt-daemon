@@ -41,9 +41,6 @@
 #include <pthread.h>
 #include <grp.h>
 
-#ifdef linux
-#   include <sys/timerfd.h>
-#endif
 #include <sys/stat.h>
 #include <sys/time.h>
 #if defined(linux) && defined(__NR_statx)
@@ -852,20 +849,20 @@ int main(int argc, char *argv[])
             watchdogTimeoutSeconds = atoi(watchdogUSec) / 2000000;
 
         watchdog_trigger_interval = watchdogTimeoutSeconds;
-        create_timer_fd(&daemon_local,
+        create_timer(&daemon_local,
                         watchdogTimeoutSeconds,
                         watchdogTimeoutSeconds,
                         DLT_TIMER_SYSTEMD);
     }
 #endif
 
-    /* create fd for timer timing packets */
-    create_timer_fd(&daemon_local, 1, 1, DLT_TIMER_PACKET);
+    /* create timer timing packets */
+    create_timer(&daemon_local, 1, 1, DLT_TIMER_PACKET);
 
-    /* create fd for timer ecu version */
+    /* create timer ecu version */
     if ((daemon_local.flags.sendECUSoftwareVersion > 0) ||
         (daemon_local.flags.sendTimezone > 0))
-        create_timer_fd(&daemon_local, 60, 60, DLT_TIMER_ECU);
+        create_timer(&daemon_local, 60, 60, DLT_TIMER_ECU);
 
     /* initiate gateway */
     if (daemon_local.flags.gatewayMode == 1) {
@@ -875,7 +872,7 @@ int main(int argc, char *argv[])
         }
 
         /* create gateway timer */
-        create_timer_fd(&daemon_local,
+        create_timer(&daemon_local,
                         DLT_GATEWAY_TIMER_INTERVAL,
                         DLT_GATEWAY_TIMER_INTERVAL,
                         DLT_TIMER_GATEWAY);
@@ -899,7 +896,7 @@ int main(int argc, char *argv[])
                             "Daemon launched. Starting to output traces...",
                             daemon_local.flags.vflag);
 
-    /* Even handling loop. */
+    /* Event handling loop. */
     while ((back >= 0) && (g_exit >= 0))
         back = dlt_daemon_handle_event(&daemon_local.pEvent,
                                        &daemon,
@@ -1042,6 +1039,9 @@ int dlt_daemon_local_init_p2(DltDaemon *daemon, DltDaemonLocal *daemon_local, in
 
     /* Set flag for optional sending of serial header */
     daemon->sendserialheader = daemon_local->flags.lflag;
+
+    /* Init timers */
+    memset(daemon_local->timer, 0, sizeof(DltTimerSpec) * DLT_TIMER_UNKNOWN);
 
 #ifdef DLT_SHM_ENABLE
 
@@ -3070,16 +3070,6 @@ int dlt_daemon_send_ringbuffer_to_client(DltDaemon *daemon, DltDaemonLocal *daem
     return DLT_DAEMON_ERROR_OK;
 }
 
-static char dlt_timer_conn_types[DLT_TIMER_UNKNOWN + 1] = {
-    [DLT_TIMER_PACKET] = DLT_CONNECTION_ONE_S_TIMER,
-    [DLT_TIMER_ECU] = DLT_CONNECTION_SIXTY_S_TIMER,
-#ifdef DLT_SYSTEMD_WATCHDOG_ENABLE
-    [DLT_TIMER_SYSTEMD] = DLT_CONNECTION_SYSTEMD_TIMER,
-#endif
-    [DLT_TIMER_GATEWAY] = DLT_CONNECTION_GATEWAY_TIMER,
-    [DLT_TIMER_UNKNOWN] = DLT_CONNECTION_TYPE_MAX
-};
-
 static char dlt_timer_names[DLT_TIMER_UNKNOWN + 1][32] = {
     [DLT_TIMER_PACKET] = "Timing packet",
     [DLT_TIMER_ECU] = "ECU version",
@@ -3090,13 +3080,14 @@ static char dlt_timer_names[DLT_TIMER_UNKNOWN + 1][32] = {
     [DLT_TIMER_UNKNOWN] = "Unknown timer"
 };
 
-int create_timer_fd(DltDaemonLocal *daemon_local,
-                    int period_sec,
-                    int starts_in,
-                    DltTimers timer_id)
+int create_timer(DltDaemonLocal *daemon_local,
+                 int period_sec,
+                 int starts_in,
+                 DltTimers timer_id)
 {
-    int local_fd = -1;
     char *timer_name = NULL;
+    DltTimerSpec *timer = NULL;
+    struct timespec tp;
 
     if (timer_id >= DLT_TIMER_UNKNOWN) {
         dlt_log(DLT_LOG_ERROR, "Unknown timer.");
@@ -3113,43 +3104,22 @@ int create_timer_fd(DltDaemonLocal *daemon_local,
     if ((period_sec <= 0) || (starts_in <= 0)) {
         /* timer not activated via the service file */
         dlt_vlog(LOG_INFO, "<%s> not set: period=0\n", timer_name);
-        local_fd = -1;
+    } else {
+        timer = &daemon_local->timer[timer_id];
+
+        clock_gettime(CLOCK_MONOTONIC, &tp);
+        timer->elapses_at_msec = (starts_in + tp.tv_sec) * 1000 + tp.tv_nsec / 1000000;
+        timer->period_msec = period_sec * 1000;
     }
-
-#ifdef linux
-    else {
-        struct itimerspec l_timer_spec;
-        local_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-
-        if (local_fd < 0)
-            dlt_vlog(LOG_WARNING, "<%s> timerfd_create failed: %s\n",
-                     timer_name, strerror(errno));
-
-        l_timer_spec.it_interval.tv_sec = period_sec;
-        l_timer_spec.it_interval.tv_nsec = 0;
-        l_timer_spec.it_value.tv_sec = starts_in;
-        l_timer_spec.it_value.tv_nsec = 0;
-
-        if (timerfd_settime(local_fd, 0, &l_timer_spec, NULL) < 0) {
-            dlt_vlog(LOG_WARNING, "<%s> timerfd_settime failed: %s\n",
-                     timer_name, strerror(errno));
-            local_fd = -1;
-        }
-    }
-#endif
 
     /* If fully initialized we are done.
      * Event handling registration is done later on with other connections.
      */
-    if (local_fd > 0)
+    if (timer != NULL)
         dlt_vlog(LOG_INFO, "<%s> initialized with %d timer\n", timer_name,
                  period_sec);
 
-    return dlt_connection_create(daemon_local,
-                                 &daemon_local->pEvent,
-                                 local_fd,
-                                 POLLIN,
-                                 dlt_timer_conn_types[timer_id]);
+    return 0;
 }
 
 /* Close connection function */

@@ -1361,30 +1361,16 @@ DltReturnValue dlt_gateway_process_passive_node_messages(DltDaemon *daemon,
 
 int dlt_gateway_process_gateway_timer(DltDaemon *daemon,
                                       DltDaemonLocal *daemon_local,
-                                      DltReceiver *receiver,
                                       int verbose)
 {
-    uint64_t expir = 0;
-    ssize_t res = 0;
-
     PRINT_FUNCTION_VERBOSE(verbose);
 
-    if ((daemon_local == NULL) || (daemon == NULL) || (receiver == NULL)) {
+    if ((daemon_local == NULL) || (daemon == NULL)) {
         dlt_vlog(LOG_ERR,
                  "%s: invalid parameters\n",
                  __func__);
         return DLT_RETURN_WRONG_PARAMETER;
     }
-
-    res = read(receiver->fd, &expir, sizeof(expir));
-
-    if (res < 0)
-        dlt_vlog(LOG_WARNING,
-                 "%s: Fail to read timer (%s)\n",
-                 __func__,
-                 strerror(errno));
-        /* Activity received on timer_wd, but unable to read the fd:
-         * let's go on sending notification */
 
     /* try to connect to passive nodes */
     dlt_gateway_establish_connections(&daemon_local->pGateway,
