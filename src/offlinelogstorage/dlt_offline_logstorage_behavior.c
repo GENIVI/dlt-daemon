@@ -425,8 +425,8 @@ int dlt_logstorage_open_log_file(DltLogStorageFilterConfig *config,
                                      1);
 
         /* concatenate path and file and open absolute path */
-        strcat(absolute_file_path, storage_path);
-        strcat(absolute_file_path, file_name);
+        strncat(absolute_file_path, storage_path,sizeof(absolute_file_path)-strlen(absolute_file_path));
+        strncat(absolute_file_path, file_name,sizeof(absolute_file_path)-strlen(absolute_file_path));
         config->working_file_name = strdup(file_name);
         config->log = fopen(absolute_file_path, "a+");
 
@@ -444,8 +444,8 @@ int dlt_logstorage_open_log_file(DltLogStorageFilterConfig *config,
     }
     else {
         /* newest file available*/
-        strcat(absolute_file_path, storage_path);
-        strcat(absolute_file_path, (*newest)->name);
+        strncat(absolute_file_path, storage_path,sizeof(absolute_file_path)-strlen(absolute_file_path));
+        strncat(absolute_file_path, (*newest)->name,sizeof(absolute_file_path)-strlen(absolute_file_path));
 
         if (config->working_file_name != NULL) {
             free(config->working_file_name);
@@ -484,8 +484,8 @@ int dlt_logstorage_open_log_file(DltLogStorageFilterConfig *config,
             memset(absolute_file_path,
                    0,
                    sizeof(absolute_file_path) / sizeof(char));
-            strcat(absolute_file_path, storage_path);
-            strcat(absolute_file_path, file_name);
+            strncat(absolute_file_path, storage_path,sizeof(absolute_file_path)-strlen(absolute_file_path));
+            strncat(absolute_file_path, file_name,sizeof(absolute_file_path)-strlen(absolute_file_path));
 
             if(config->working_file_name) {
                 free(config->working_file_name);
@@ -516,8 +516,8 @@ int dlt_logstorage_open_log_file(DltLogStorageFilterConfig *config,
                 memset(absolute_file_path,
                        0,
                        sizeof(absolute_file_path) / sizeof(char));
-                strcat(absolute_file_path, storage_path);
-                strcat(absolute_file_path, (*head)->name);
+                strncat(absolute_file_path, storage_path,sizeof(absolute_file_path)-strlen(absolute_file_path));
+                strncat(absolute_file_path, (*head)->name,sizeof(absolute_file_path)-strlen(absolute_file_path));
                 remove(absolute_file_path);
                 free((*head)->name);
                 *head = n->next;
