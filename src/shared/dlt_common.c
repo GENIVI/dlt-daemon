@@ -191,7 +191,7 @@ DltReturnValue dlt_print_mixed_string(char *text, int textlength, uint8_t *ptr, 
     for (lines = 0; lines < (size / DLT_COMMON_HEX_CHARS); lines++) {
         int ret = 0;
         /* Line number */
-        ret = snprintf(text, DLT_COMMON_HEX_LINELEN + 1, "%.6x: ", lines * DLT_COMMON_HEX_CHARS);
+        ret = snprintf(text, DLT_COMMON_HEX_LINELEN + 1, "%.6x: ", (uint32_t)lines * DLT_COMMON_HEX_CHARS);
 
         if ((ret < 0) || (ret >= (DLT_COMMON_HEX_LINELEN + 1)))
             dlt_log(LOG_WARNING, "line was truncated\n");
@@ -229,7 +229,7 @@ DltReturnValue dlt_print_mixed_string(char *text, int textlength, uint8_t *ptr, 
     if (rest > 0) {
         /* Line number */
         int ret = 0;
-        ret = snprintf(text, 9, "%.6x: ", (size / DLT_COMMON_HEX_CHARS) * DLT_COMMON_HEX_CHARS);
+        ret = snprintf(text, 9, "%.6x: ", (uint32_t)(size / DLT_COMMON_HEX_CHARS) * DLT_COMMON_HEX_CHARS);
 
         if ((ret < 0) || (ret >= 9))
             dlt_log(LOG_WARNING, "line number was truncated");
@@ -395,9 +395,8 @@ DltReturnValue dlt_filter_load(DltFilter *filter, const char *filename, int verb
         return DLT_RETURN_WRONG_PARAMETER;
 
     FILE *handle;
-    char str1[DLT_COMMON_BUFFER_LENGTH];
+    char str1[DLT_COMMON_BUFFER_LENGTH + 1];
     char apid[DLT_ID_SIZE], ctid[DLT_ID_SIZE];
-    char format[10];
 
     PRINT_FUNCTION_VERBOSE(verbose);
 
@@ -408,7 +407,8 @@ DltReturnValue dlt_filter_load(DltFilter *filter, const char *filename, int verb
         return DLT_RETURN_ERROR;
     }
 
-    sprintf(format, "%c%ds", '%', DLT_COMMON_BUFFER_LENGTH-1);
+    #define FORMAT_STRING_(x) "%" #x "s"
+    #define FORMAT_STRING(x) FORMAT_STRING_(x)
 
     /* Reset filters */
     filter->counter = 0;
@@ -416,7 +416,7 @@ DltReturnValue dlt_filter_load(DltFilter *filter, const char *filename, int verb
     while (!feof(handle)) {
         str1[0] = 0;
 
-        if (fscanf(handle, format, str1) != 1)
+        if (fscanf(handle, FORMAT_STRING(DLT_COMMON_BUFFER_LENGTH), str1) != 1)
             break;
 
         if (str1[0] == 0)
@@ -431,7 +431,7 @@ DltReturnValue dlt_filter_load(DltFilter *filter, const char *filename, int verb
 
         str1[0] = 0;
 
-        if (fscanf(handle, format, str1) != 1)
+        if (fscanf(handle, FORMAT_STRING(DLT_COMMON_BUFFER_LENGTH), str1) != 1)
             break;
 
         if (str1[0] == 0)
@@ -1023,7 +1023,7 @@ int dlt_message_read(DltMessage *msg, uint8_t *buffer, unsigned int length, int 
 
     /* check if verbose mode is on*/
     if (verbose) {
-        dlt_vlog(LOG_DEBUG, "BufferLength=%d, HeaderSize=%d, DataSize=%d\n",
+        dlt_vlog(LOG_DEBUG, "BufferLength=%u, HeaderSize=%u, DataSize=%u\n",
                  length, msg->headersize, msg->datasize);
     }
 
@@ -1067,7 +1067,7 @@ int dlt_message_read(DltMessage *msg, uint8_t *buffer, unsigned int length, int 
 
     if (msg->databuffer == NULL) {
         dlt_vlog(LOG_WARNING,
-                 "Cannot allocate memory for payload buffer of size %d!\n",
+                 "Cannot allocate memory for payload buffer of size %u!\n",
                  msg->datasize);
         return DLT_MESSAGE_ERROR_UNKNOWN;
     }
@@ -1239,7 +1239,7 @@ DltReturnValue dlt_file_read_header(DltFile *file, int verbose)
 
     /* check if verbose mode is on */
     if (verbose) {
-        dlt_vlog(LOG_DEBUG, "HeaderSize=%d, DataSize=%d\n",
+        dlt_vlog(LOG_DEBUG, "HeaderSize=%u, DataSize=%u\n",
                  file->msg.headersize, file->msg.datasize);
     }
 
@@ -1336,7 +1336,7 @@ DltReturnValue dlt_file_read_header_raw(DltFile *file, int resync, int verbose)
 
     /* check if verbose mode is on */
     if (verbose) {
-        dlt_vlog(LOG_DEBUG, "HeaderSize=%d, DataSize=%d\n",
+        dlt_vlog(LOG_DEBUG, "HeaderSize=%u, DataSize=%u\n",
                  file->msg.headersize, file->msg.datasize);
     }
 
@@ -1407,7 +1407,7 @@ DltReturnValue dlt_file_read_data(DltFile *file, int verbose)
 
     if (file->msg.databuffer == NULL) {
         dlt_vlog(LOG_WARNING,
-                 "Cannot allocate memory for payload buffer of size %d!\n",
+                 "Cannot allocate memory for payload buffer of size %u!\n",
                  file->msg.datasize);
         return DLT_RETURN_ERROR;
     }
@@ -1416,7 +1416,7 @@ DltReturnValue dlt_file_read_data(DltFile *file, int verbose)
     if (fread(file->msg.databuffer, file->msg.datasize, 1, file->handle) != 1) {
         if (file->msg.datasize != 0) {
             dlt_vlog(LOG_WARNING,
-                     "Cannot read payload data from file of size %d!\n",
+                     "Cannot read payload data from file of size %u!\n",
                      file->msg.datasize);
             return DLT_RETURN_ERROR;
         }
@@ -1500,14 +1500,14 @@ DltReturnValue dlt_file_read(DltFile *file, int verbose)
 
     /* set to end of last succesful read message, because of conflicting calls to dlt_file_read and dlt_file_message */
     if (0 != fseek(file->handle, file->file_position, SEEK_SET)) {
-        dlt_vlog(LOG_WARNING, "Seek failed to file_position %ld \n",
+        dlt_vlog(LOG_WARNING, "Seek failed to file_position %lu\n",
                  file->file_position);
         return DLT_RETURN_ERROR;
     }
 
     /* get file position at start of DLT message */
     if (verbose) {
-        dlt_vlog(LOG_INFO, "Position in file: %ld\n", file->file_position);
+        dlt_vlog(LOG_INFO, "Position in file: %lu\n", file->file_position);
     }
 
     /* read header */
@@ -1543,7 +1543,7 @@ DltReturnValue dlt_file_read(DltFile *file, int verbose)
         if (fseek(file->handle, file->msg.datasize, SEEK_CUR) != 0) {
             /* go back to last position in file */
             dlt_vlog(LOG_WARNING,
-                     "Seek failed to skip payload data of size %d!\n",
+                     "Seek failed to skip payload data of size %u!\n",
                      file->msg.datasize);
 
             if (0 != fseek(file->handle, file->file_position, SEEK_SET)) {
@@ -1561,7 +1561,7 @@ DltReturnValue dlt_file_read(DltFile *file, int verbose)
                   SEEK_CUR)) {
 
             dlt_vlog(LOG_WARNING,
-                     "Seek failed to skip extra header and payload data from file of size %d!\n",
+                     "Seek failed to skip extra header and payload data from file of size %u!\n",
                      file->msg.headersize - (int32_t)sizeof(DltStorageHeader) -
                      (int32_t)sizeof(DltStandardHeader) + file->msg.datasize);
 
@@ -1623,7 +1623,7 @@ DltReturnValue dlt_file_read_raw(DltFile *file, int resync, int verbose)
 
     /* get file position at start of DLT message */
     if (verbose) {
-        dlt_vlog(LOG_DEBUG, "Position in file: %ld\n", file->file_position);
+        dlt_vlog(LOG_DEBUG, "Position in file: %lu\n", file->file_position);
     }
 
     /* read header */
@@ -1845,7 +1845,7 @@ DltReturnValue dlt_log(int prio, char *s)
                                  2][11] =
     { "EMERGENCY", "ALERT    ", "CRITICAL ", "ERROR    ", "WARNING  ", "NOTICE   ", "INFO     ", "DEBUG    ",
       "         " };
-    static const char sFormatString[] = "[%5d.%06d]~DLT~%5d~%s~%s";
+    static const char sFormatString[] = "[%5u.%06u]~DLT~%5d~%s~%s";
     struct timespec sTimeSpec;
 
     if (s == NULL)
@@ -2246,17 +2246,6 @@ DltReturnValue dlt_check_storageheader(DltStorageHeader *storageheader)
            ? DLT_RETURN_TRUE : DLT_RETURN_OK;
 }
 
-
-
-
-
-
-
-
-
-
-
-
 DltReturnValue dlt_buffer_init_static_server(DltBuffer *buf, const unsigned char *ptr, uint32_t size)
 {
     if ((buf == NULL) || (ptr == NULL))
@@ -2282,7 +2271,7 @@ DltReturnValue dlt_buffer_init_static_server(DltBuffer *buf, const unsigned char
     memset(buf->mem, 0, buf->size);
 
     dlt_vlog(LOG_DEBUG,
-             "%s: Buffer: Size %d, Start address %lX\n",
+             "%s: Buffer: Size %u, Start address %lX\n",
              __func__, buf->size, (unsigned long)buf->mem);
 
     return DLT_RETURN_OK; /* OK */
@@ -2304,7 +2293,7 @@ DltReturnValue dlt_buffer_init_static_client(DltBuffer *buf, const unsigned char
     buf->size = (uint32_t) (buf->min_size - sizeof(DltBufferHead));
 
     dlt_vlog(LOG_DEBUG,
-             "%s: Buffer: Size %d, Start address %lX\n",
+             "%s: Buffer: Size %u, Start address %lX\n",
              __func__, buf->size, (unsigned long)buf->mem);
 
     return DLT_RETURN_OK; /* OK */
@@ -2339,7 +2328,7 @@ DltReturnValue dlt_buffer_init_dynamic(DltBuffer *buf, uint32_t min_size, uint32
 
     if (buf->shm == NULL) {
         dlt_vlog(LOG_EMERG,
-                 "%s: Buffer: Cannot allocate %d bytes\n",
+                 "%s: Buffer: Cannot allocate %u bytes\n",
                  __func__, buf->min_size);
         return DLT_RETURN_ERROR;
     }
@@ -2361,7 +2350,7 @@ DltReturnValue dlt_buffer_init_dynamic(DltBuffer *buf, uint32_t min_size, uint32
     buf->size = (uint32_t) (buf->min_size - sizeof(DltBufferHead));
 
     dlt_vlog(LOG_DEBUG,
-             "%s: Buffer: Size %d, Start address %lX\n",
+             "%s: Buffer: Size %u, Start address %lX\n",
              __func__, buf->size, (unsigned long)buf->mem);
 
     /* clear memory */
@@ -2492,7 +2481,7 @@ int dlt_buffer_increase_size(DltBuffer *buf)
 
     if (new_ptr == NULL) {
         dlt_vlog(LOG_WARNING,
-                 "%s: Buffer: Cannot increase size because allocate %d bytes failed\n",
+                 "%s: Buffer: Cannot increase size because allocate %u bytes failed\n",
                  __func__, buf->min_size);
         return DLT_RETURN_ERROR;
     }
@@ -2524,7 +2513,7 @@ int dlt_buffer_increase_size(DltBuffer *buf)
     buf->size += buf->step_size;
 
     dlt_vlog(LOG_DEBUG,
-             "%s: Buffer: Size increased to %d bytes with start address %lX\n",
+             "%s: Buffer: Size increased to %u bytes with start address %lX\n",
              __func__,
              buf->size + (int32_t)sizeof(DltBufferHead),
              (unsigned long)buf->mem);
@@ -2551,7 +2540,7 @@ int dlt_buffer_minimize_size(DltBuffer *buf)
 
     if (new_ptr == NULL) {
         dlt_vlog(LOG_WARNING,
-                 "%s: Buffer: Cannot set to min size of %d bytes\n",
+                 "%s: Buffer: Cannot set to min size of %u bytes\n",
                  __func__, buf->min_size);
         return DLT_RETURN_ERROR;
     }
@@ -2570,7 +2559,7 @@ int dlt_buffer_minimize_size(DltBuffer *buf)
     ((int *)(buf->shm))[2] = 0;  /* number of packets */
 
     dlt_vlog(LOG_DEBUG,
-             "%s: Buffer: Buffer minimized to Size %d bytes with start address %lX\n",
+             "%s: Buffer: Buffer minimized to Size %u bytes with start address %lX\n",
              __func__, buf->size, (unsigned long)buf->mem);
 
     /* clear memory */
@@ -2588,7 +2577,7 @@ int dlt_buffer_reset(DltBuffer *buf)
     }
 
     dlt_vlog(LOG_WARNING,
-             "%s: Buffer: Buffer reset triggered. Size: %d, Start address: %lX\n",
+             "%s: Buffer: Buffer reset triggered. Size: %u, Start address: %lX\n",
              __func__, buf->size, (unsigned long)buf->mem);
 
     /* reset pointers and counters */
@@ -2637,7 +2626,7 @@ int dlt_buffer_push3(DltBuffer *buf,
     /* check pointers */
     if (((unsigned int) read > buf->size) || ((unsigned int) write > buf->size)) {
         dlt_vlog(LOG_ERR,
-                 "%s: Buffer: Pointer out of range. Read: %d, Write: %d, Size: %d\n",
+                 "%s: Buffer: Pointer out of range. Read: %d, Write: %d, Size: %u\n",
                  __func__, read, write, buf->size);
         dlt_buffer_reset(buf);
         return DLT_RETURN_ERROR; /* ERROR */
@@ -2662,7 +2651,7 @@ int dlt_buffer_push3(DltBuffer *buf,
         /* update pointers */
         write = ((int *)(buf->shm))[0];
         read = ((int *)(buf->shm))[1];
-    	
+
 	    /* update free size */
         if (read > write)
             free_size = read - write;
@@ -2670,7 +2659,6 @@ int dlt_buffer_push3(DltBuffer *buf,
             free_size = 0;
         else
             free_size = buf->size - write + read;
-
     }
 
     /* set header */
@@ -2724,7 +2712,7 @@ int dlt_buffer_get(DltBuffer *buf, unsigned char *data, int max_size, int delete
     /* check pointers */
     if (((unsigned int) read > buf->size) || ((unsigned int) write > buf->size) || (count < 0)) {
         dlt_vlog(LOG_ERR,
-                 "%s: Buffer: Pointer out of range. Read: %d, Write: %d, Count: %d, Size: %d\n",
+                 "%s: Buffer: Pointer out of range. Read: %d, Write: %d, Count: %d, Size: %u\n",
                  __func__, read, write, count, buf->size);
         dlt_buffer_reset(buf);
         return DLT_RETURN_ERROR; /* ERROR */
@@ -2841,7 +2829,7 @@ void dlt_buffer_info(DltBuffer *buf)
     }
 
     dlt_vlog(LOG_DEBUG,
-             "Buffer: Available size: %d, Buffer: Buffer full start address: %lX, Buffer: Buffer start address: %lX\n",
+             "Buffer: Available size: %u, Buffer: Buffer full start address: %lX, Buffer: Buffer start address: %lX\n",
              buf->size, (unsigned long)buf->shm, (unsigned long)buf->mem);
 }
 
@@ -4135,7 +4123,7 @@ DltReturnValue dlt_file_quick_parsing(DltFile *file, const char *filename,
     while(ret >= DLT_RETURN_OK && file->file_position < file->file_length) {
         /* get file position at start of DLT message */
         if (verbose) {
-            dlt_vlog(LOG_DEBUG, "Position in file: %ld\n", file->file_position);
+            dlt_vlog(LOG_DEBUG, "Position in file: %lu\n", file->file_position);
         }
 
         /* read all header and payload */
